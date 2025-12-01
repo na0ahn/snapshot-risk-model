@@ -1,0 +1,11 @@
+
+# Python
+__pycache__/
+*.pyc
+
+# Colab, OS
+*.ipynb_checkpoints/
+.DS_Store
+
+# 큰 데이터
+data/
