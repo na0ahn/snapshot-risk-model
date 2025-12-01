@@ -3,10 +3,10 @@ import numpy as np
 
 
 def process_oulad_data(
-    assessments_path: str = "assessments.csv",
-    student_assessments_path: str = "studentAssessment.csv",
-    student_info_path: str = "studentInfo.csv",
-    output_filename: str = "oulad_proxy_features.csv",
+    assessments_path: str = "data/oulad/raw/assessments.csv",
+    student_assessments_path: str = "data/oulad/raw/studentAssessment.csv",
+    student_info_path: str = "data/oulad/raw/studentInfo.csv",
+    output_filename: str = "data/oulad/processed/oulad_proxy_features.csv",
 ):
     """
     OULAD 원본 CSV들을 읽어서,

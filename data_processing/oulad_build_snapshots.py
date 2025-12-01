@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 
 def build_snapshots_from_base(
-    base_csv: str = "oulad_proxy_features.csv",
+    base_csv: str = "data/oulad/processed/oulad_proxy_features.csv",
     snapshot_offsets_days = (-7, -3, 0),
-    output_filename: str = "oulad_snapshots.csv",
+    output_filename: str = "data/oulad/processed/oulad_snapshots.csv",
 ):
     """
     per-assignment base 테이블(oulad_proxy_features.csv)을 받아서
@@ -86,8 +86,8 @@ if __name__ == "__main__":
 
     # 2단계: snapshot 생성
     build_snapshots_from_base(
-        base_csv="oulad_proxy_features.csv",
+        base_csv="data/oulad/processed/oulad_proxy_features.csv",
         snapshot_offsets_days=(-7, -3, 0),  # 필요하면 (-7, -3, -1, 0) 등으로 조정 가능
-        output_filename="oulad_snapshots.csv",
+        output_filename="data/oulad/processed/oulad_snapshots.csv",
     )
 
