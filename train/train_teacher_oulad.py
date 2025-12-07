@@ -1,5 +1,3 @@
-# train_teacher_oulad.py
-
 import os
 import sys
 import numpy as np
@@ -9,7 +7,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
-# 프로젝트 루트 기준 import (파일은 project_root/ 에 있어야 함)
 from configs.train_config import default_config as cfg
 from configs.feature_config import NUMERIC_COLS, CAT_COLS, LABEL_COL, GROUP_COLS
 from datasets.snapshot_dataset import SnapshotDataset
@@ -18,7 +15,6 @@ from models.snapshot_risk_model import SnapshotRiskModelFT
 from losses.snapshot_losses import monotone_and_smooth_loss
 from utils.seed import seed_everything
 from utils.metrics import calculate_metrics
-
 
 def make_dataloaders_oulad(dataset: SnapshotDataset, val_ratio: float = 0.2):
     """
@@ -87,20 +83,20 @@ def train_teacher_oulad():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[Device] {device}")
 
-    # 1. Dataset 로드 (OULAD snapshots)
+    # 1. Dataset 로드
     dataset = SnapshotDataset(
         csv_path=cfg.OULAD_CSV,
         numeric_cols=NUMERIC_COLS,
         cat_cols=CAT_COLS,
         label_col=LABEL_COL,
         group_cols=GROUP_COLS,
-        teacher_prob_col=None,   # Teacher는 teacher_prob 없음
-        fit_encoders=True,       # ★ OULAD에서 인코더 학습
+        teacher_prob_col=None,
+        fit_encoders=True,
         cat_encoders=None,
     )
     print(f"[Dataset] OULAD snapshots loaded. shape={len(dataset.df)}")
 
-    # 2. Train / Val DataLoader 생성
+    # 2. Train / Val DataLoader
     train_loader, val_loader = make_dataloaders_oulad(dataset, val_ratio=0.2)
 
     # 3. 모델 생성
@@ -115,12 +111,23 @@ def train_teacher_oulad():
     ).to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=cfg.LR_TEACHER)
-    bce_loss_fn = nn.BCEWithLogitsLoss()
+
+    # [변경 1] pos_weight 고정값 (2.5) 적용
+    # OULAD 데이터 비율(약 2.5:1)을 고려하여 Positive Class에 가중치 부여
+    pos_weight = torch.tensor([2.5]).to(device)
+    bce_loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 
     best_val_auc = 0.0
 
+    # [변경 2] Epoch 증가 (20 -> 100) 및 Early Stopping 변수 설정
+    epochs = 100        # 넉넉하게 설정
+    patience = 15       # 15 epoch 동안 개선 없으면 중단
+    patience_counter = 0 # 카운터 초기화
+
+    print(f"[Training] Start (Max Epochs: {epochs}, Patience: {patience}, pos_weight: 2.5)")
+
     # 4. 학습 루프
-    for epoch in range(1, cfg.EPOCHS + 1):
+    for epoch in range(1, epochs + 1):
         # ----- Train -----
         model.train()
         train_losses = []
@@ -195,31 +202,37 @@ def train_teacher_oulad():
         val_auc, val_f1, val_acc = metrics["auc"], metrics["f1"], metrics["acc"]
 
         print(
-            f"[Epoch {epoch}/{cfg.EPOCHS}] "
-            f"TrainLoss={avg_train_loss:.4f} (BCE={avg_train_bce:.4f}, Reg={avg_train_reg:.4f}) | "
+            f"[Epoch {epoch}/{epochs}] "
+            f"TrainLoss={avg_train_loss:.4f} (BCE={avg_train_bce:.4f}) | "
             f"ValLoss={avg_val_loss:.4f} | "
-            f"AUC={val_auc:.4f}, F1={val_f1:.4f}, Acc={val_acc:.4f}"
+            f"AUC={val_auc:.4f}, F1={val_f1:.4f} (Counter: {patience_counter}/{patience})"
         )
 
-        # ----- Checkpoint 저장 (AUC 기준 Best 갱신 시) -----
+        # Early Stopping 로직 적용
         if val_auc > best_val_auc:
             best_val_auc = val_auc
+            patience_counter = 0  # 개선되었으므로 카운터 초기화
 
-            # TEACHER_MODEL_PATH 사용하도록 수정
+            # Best Model 저장
             ckpt_path = cfg.TEACHER_MODEL_PATH
             os.makedirs(os.path.dirname(ckpt_path), exist_ok=True)
             torch.save(model.state_dict(), ckpt_path)
             
-            # Teacher 인코더는 학습 중 변하지 않으므로 한 번만 저장하면 되지만,
-            # 편의상 여기에서 함께 저장해도 무방함.
             import pickle
             with open(cfg.ENCODER_PATH, "wb") as f:
                 pickle.dump(dataset.cat_encoders, f)
-            print(f"  ↳ [BEST] 모델 갱신! (AUC={best_val_auc:.4f}) → {ckpt_path}")
-            print(f"  ↳ Cat encoders 저장 → {cfg.ENCODER_PATH}")
+            
+            print(f"  ↳ [BEST] 갱신 (AUC={best_val_auc:.4f}) -> 저장 완료")
+        else:
+            patience_counter += 1
+            print(f"  ↳ 개선 없음 ({patience_counter}/{patience})")
+
+        # Patience 초과 시 학습 중단
+        if patience_counter >= patience:
+            print(f"[Early Stopping] {patience} epoch 동안 개선이 없어 학습을 조기 종료합니다.")
+            break
 
     print(f"[Done] Training finished. Best Val AUC = {best_val_auc:.4f}")
-
 
 if __name__ == "__main__":
     train_teacher_oulad()
