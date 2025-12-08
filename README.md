@@ -1,5 +1,3 @@
------
-
 # SKKU Assignment Risk Prediction (Teacher-Student Framework)
 
 ## 프로젝트 개요
@@ -42,8 +40,9 @@ python inference_demo.py
 
 ### 3\. 앙상블 및 모델 정당성 증명 (Ensemble & Justification)
 
-\*\*"왜 Random Forest가 더 좋은데 굳이 딥러닝을 썼는가?"\*\*에 대한 방어 논리 실험입니다.
-  * ** 핵심 분석 포인트 :**
+**"왜 Random Forest가 더 좋은데 굳이 딥러닝을 썼는가?"\*\*에 대한 방어 논리 실험입니다.**
+
+  * **핵심 분석 포인트 :**
       * RF/XGB는 \*\*"수치적 규칙(Rule-based)"\*\*에 강합니다. (예: 점수가 0이면 위험)
       * DL(Student)은 \*\*"의미론적 패턴(Semantic Pattern)"\*\*에 강합니다. (Teacher가 전수해준 잠재적 위험도)
       * **결론:** 두 모델은 서로 틀리는 문제가 다릅니다. 따라서 **RF + DL 앙상블 시 성능을 관찰하여, 각각의 coverage를 비교
